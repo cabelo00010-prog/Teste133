@@ -2,64 +2,78 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>IA do Angelo - Mobile</title>
+  <title>Ângelo IA - Holistic Mobile</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
   <style>
-    body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #222; color: white; }
-    canvas { width: 100%; max-width: 500px; border-radius: 10px; }
+    body { margin: 0; background: #111; color: white; font-family: sans-serif; text-align: center; }
+    canvas { width: 100%; max-width: 640px; border: 2px solid #00ff00; margin-top: 10px; }
     video { display: none; }
-    .status { padding: 10px; font-family: sans-serif; }
+    .info { padding: 10px; font-size: 14px; color: #0f0; }
   </style>
 </head>
 <body>
-  <div class="status" id="status">A carregar IA...</div>
+  <div class="info">IA HOLISTIC ATIVA: Rosto, Mãos e Corpo</div>
   <video id="input_video"></video>
-  <canvas id="output_canvas"></canvas>
+  <canvas id="output_canvas" width="640px" height="480px"></canvas>
 
   <script type="module">
     const videoElement = document.getElementById('input_video');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
-    const status = document.getElementById('status');
 
     function onResults(results) {
-      status.innerText = "IA Ativa - Move-te!";
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
       
-      if (results.poseLandmarks) {
-        drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-        drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', lineWidth: 2});
-      }
+      // 1. Desenha a imagem da câmara
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      // 2. Desenha o ROSTO (Face Mesh)
+      drawConnectors(canvasCtx, results.faceLandmarks, FACEMESH_TESSELATION,
+                     {color: '#C0C0C070', lineWidth: 1});
+
+      // 3. Desenha o CORPO (Pose)
+      drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS,
+                     {color: '#00FF00', lineWidth: 3});
+      drawLandmarks(canvasCtx, results.poseLandmarks,
+                    {color: '#FF0000', lineWidth: 1});
+
+      // 4. Desenha as MÃOS (Esquerda e Direita)
+      drawConnectors(canvasCtx, results.leftHandLandmarks, HAND_CONNECTIONS,
+                     {color: '#CC0000', lineWidth: 3});
+      drawLandmarks(canvasCtx, results.leftHandLandmarks,
+                    {color: '#00FF00', lineWidth: 1});
+      drawConnectors(canvasCtx, results.rightHandLandmarks, HAND_CONNECTIONS,
+                     {color: '#00CC00', lineWidth: 3});
+      drawLandmarks(canvasCtx, results.rightHandLandmarks,
+                    {color: '#FF0000', lineWidth: 1});
+      
       canvasCtx.restore();
     }
 
-    const pose = new Pose({locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    const holistic = new Holistic({locateFile: (file) => {
+      return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
     }});
 
-    pose.setOptions({
-      modelComplexity: 1,
+    holistic.setOptions({
+      modelComplexity: 1, // 0 para mais rápido, 1 para melhor equilíbrio
       smoothLandmarks: true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5
     });
 
-    pose.onResults(onResults);
+    holistic.onResults(onResults);
 
-    // Inicia a câmara do telemóvel
     const camera = new Camera(videoElement, {
       onFrame: async () => {
-        await pose.send({image: videoElement});
+        await holistic.send({image: videoElement});
       },
       width: 640,
       height: 480
     });
     camera.start();
   </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
 </body>
 </html>
